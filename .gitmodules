@@ -1,0 +1,6 @@
+[submodule "pilah-be"]
+	path = pilah-be
+	url = git@github.com:bank-sampah-PILAH/pilah-be.git
+[submodule "pilah-mobile"]
+	path = pilah-mobile
+	url = git@github.com:bank-sampah-PILAH/pilah-mobile.git
