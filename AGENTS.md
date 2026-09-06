@@ -7,7 +7,9 @@
 - `pilah-be` and `pilah-mobile` are Git submodules. Keep application changes
   inside the corresponding submodule; use this root repository for workspace
   wiring and shared agent configuration.
-- Both application repositories use `main` as their baseline and PR target.
+- Both application repositories keep their canonical checkouts on `main` but
+  use `staging` as the default ship baseline and PR target. An explicit branch
+  in a request overrides that default.
 
 ## Multi-repository delivery
 
@@ -28,6 +30,7 @@
 
 ## Local validation
 
-- Backend: follow `pilah-be/AGENTS.md` and its documented Django checks.
+- Backend: follow `pilah-be/AGENTS.md`; prefer its documented `uv`-based Django
+  checks when `uv` is available.
 - Mobile: follow `pilah-mobile/AGENTS.md` and its documented Flutter checks.
 - Do not commit credentials, generated runtime files, or local databases.

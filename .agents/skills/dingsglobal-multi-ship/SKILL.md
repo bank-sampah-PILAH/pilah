@@ -1,6 +1,6 @@
 ---
 name: dingsglobal-multi-ship
-description: Coordinates one PILAH feature or fix across pilah-be and pilah-mobile with the same branch name, isolated sibling worktrees, parallel validation, pushes, and pull requests. Use with the global ship skill when a request starts with `ship` and names both repositories.
+description: Coordinates one PILAH feature or fix across pilah-be and pilah-mobile with the same branch name, isolated sibling worktrees, parallel validation, pushes, and pull requests. Uses `staging` as the default checkout and PR target unless the request explicitly names another branch. Use with the global ship skill when a request starts with `ship` and names both repositories.
 argument-hint: "<feature or fix prompt> in <pilah-be|pilah-mobile> and <pilah-be|pilah-mobile>"
 compatibility: Requires git, gh, and task delegation; run from the PILAH workspace root.
 metadata:
@@ -25,6 +25,9 @@ for each repository.
   the selection or repository-specific responsibility is ambiguous.
 - Derive one `feature` or `fix` kind and one kebab-case `<name>` from the full
   request. Set the exact shared branch to `<kind>/<name>`.
+- Resolve `baseline_branch` and `target_branch` once for both repositories.
+  Default both to `staging`; honor an explicit checkout/base or PR target
+  branch in the request instead of silently using `main`.
 - Split the request into repository-specific responsibilities. Establish any
   shared endpoint, payload, validation, authentication, or error contract before
   delegation so workers do not invent incompatible interfaces.
@@ -35,9 +38,10 @@ Inspect all selected repositories concurrently before creating any worktree:
 
 - resolve repository root, baseline branch, remote, and hosting provider;
 - require a clean baseline checkout;
-- fetch `origin/main` for both repositories;
-- require both canonical checkouts to be on `main`, create each worktree from
-  `origin/main`, and target `main` for each PR;
+- fetch `origin/<baseline_branch>` for both repositories;
+- require both canonical checkouts to be clean and on their default branch
+  (`main` today), create each worktree from `origin/<baseline_branch>`, and
+  target `<target_branch>` for each PR;
 - require the exact shared branch and worktree path not to exist locally or
   remotely;
 - read `AGENTS.md` and identify the documented setup and validation
@@ -54,6 +58,8 @@ each worker:
 - its absolute repository path and repository-specific responsibility;
 - the full user request and agreed cross-repository contract;
 - exact kind, name, branch, and expected worktree path;
+- the resolved `baseline_branch` and `target_branch` (both `staging` by
+  default);
 - instructions to follow the global `ship` skill from worktree creation through
   PR creation without deriving a different name;
 - instructions to copy the source repository's `.agents/` directory into
