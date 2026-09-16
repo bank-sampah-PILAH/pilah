@@ -12,9 +12,12 @@
 ## Multi-repository delivery
 
 - When a request begins with literal `ship` and names both repositories, load
-  `dingsglobal-multi-ship` together with the global `ship` skill.
+  `multi-ship` together with the workspace `ship` skill.
 - Derive one change kind and kebab-case branch name, then use the same branch
   in sibling worktrees for both submodules.
+- If the request supplies or explicitly asks for an existing Linear issue, use
+  the configured Linear MCP to resolve it and name the shared branch
+  `feature/<issue-id>`. Do not create an issue unless explicitly requested.
 - Validate, push, and open one PR per selected repository. Do not commit
   application changes to the root checkout or either canonical submodule
   checkout.
@@ -22,7 +25,7 @@
 ## Multi-repository merge
 
 - When `LGTM`, merge, approve-and-merge, or cleanup names both repositories,
-  load `dingsglobal-multi-lgtm` together with the global `lgtm` skill.
+  load `multi-lgtm` together with the global `lgtm` skill.
 - Preflight every PR before merging any of them. Never remove a dirty worktree
   or undo a successful merge to compensate for another repository failing.
 

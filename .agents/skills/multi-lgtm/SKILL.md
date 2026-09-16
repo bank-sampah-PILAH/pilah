@@ -1,8 +1,8 @@
 ---
-name: dingsglobal-multi-lgtm
+name: multi-lgtm
 description: Preflights, merges, and cleans up matching PILAH pull requests across pilah-be and pilah-mobile using parallel phases. Use when LGTM, merge, approve-and-merge, or cleanup targets the same branch in both repositories.
 argument-hint: "<branch, PRs, or feature name> in <pilah-be|pilah-mobile> and <pilah-be|pilah-mobile>"
-compatibility: Requires git, gh, and task delegation; intended for worktrees created by dingsglobal-multi-ship.
+compatibility: Requires git, gh, and task delegation; intended for worktrees created by multi-ship.
 metadata:
   author: CommandCode
   version: "1.0"

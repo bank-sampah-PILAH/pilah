@@ -1,6 +1,6 @@
 ---
-name: dingsglobal-multi-ship
-description: Coordinates one PILAH feature or fix across pilah-be and pilah-mobile with the same branch name, isolated sibling worktrees, parallel validation, pushes, and pull requests. Use with the global ship skill when a request starts with `ship` and names both repositories.
+name: multi-ship
+description: Coordinates one PILAH feature or fix across pilah-be and pilah-mobile with the same branch name, isolated sibling worktrees, parallel validation, pushes, and pull requests. Use with the workspace ship skill when a request starts with `ship` and names both repositories; optionally link an existing Linear issue.
 argument-hint: "<feature or fix prompt> in <pilah-be|pilah-mobile> and <pilah-be|pilah-mobile>"
 compatibility: Requires git, gh, and task delegation; run from the PILAH workspace root.
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Ship Across PILAH Repositories
 
-Follow the global `ship` skill for each selected repository. This skill owns
+Follow the workspace `ship` skill for each selected repository. This skill owns
 cross-repository coordination and overrides only repository selection, shared
 naming, preflight ordering, and parallel delegation.
 
@@ -23,8 +23,16 @@ for each repository.
 - Map aliases: `be|backend` -> `pilah-be` and `mobile|app` -> `pilah-mobile`.
 - Require at least two repositories to be explicit. Ask one short question if
   the selection or repository-specific responsibility is ambiguous.
-- Derive one `feature` or `fix` kind and one kebab-case `<name>` from the full
-  request. Set the exact shared branch to `<kind>/<name>`.
+- Optionally resolve a referenced Linear issue with the configured Linear MCP
+  tools before deriving the shared branch:
+  - If the prompt supplies an issue identifier or asks to use an existing issue,
+    resolve it and set the exact shared branch to `feature/<issue-id>`.
+  - If no issue is supplied or found, derive one `feature` or `fix` kind and one
+    kebab-case `<name>` from the full request, then use `<kind>/<name>`.
+  - Never create a Linear issue automatically. Only create one when the user
+    explicitly asks, then use its returned identifier in `feature/<issue-id>`.
+- Pass one resolved issue identifier and branch to every repository worker; do
+  not let workers independently search for or create a different issue.
 - Split the request into repository-specific responsibilities. Establish any
   shared endpoint, payload, validation, authentication, or error contract before
   delegation so workers do not invent incompatible interfaces.
@@ -54,8 +62,12 @@ each worker:
 - its absolute repository path and repository-specific responsibility;
 - the full user request and agreed cross-repository contract;
 - exact kind, name, branch, and expected worktree path;
-- instructions to follow the global `ship` skill from worktree creation through
-  PR creation without deriving a different name;
+- instructions to follow the workspace `ship` skill from worktree creation
+  through PR creation without deriving a different name;
+- instructions to load the workspace `tdd` skill before implementation and use
+  one red-green-refactor vertical behavior slice at a time;
+- instructions to keep each TDD phase in its own scoped `test`, `feat`, or
+  optional post-green `refactor` commit;
 - instructions to copy the source repository's `.agents/` directory into
   the new worktree immediately after `git worktree add`, when it exists, before
   reading local instructions or starting implementation;
