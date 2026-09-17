@@ -73,6 +73,9 @@ each worker:
   reading local instructions or starting implementation;
 - instructions to read its project `AGENTS.md` and return PR URL,
   commits, checks, worktree path, and blockers.
+- instructions to immediately assign the authenticated user to the new PR/MR
+  after creation and verify the assignment succeeds, using the workspace
+  `ship` skill's GitHub or GitLab command.
 - instructions to load the selected repository's local `ship` and `lgtm` skills.
 
 The explicit multi-project request authorizes all named workers. Do not request
@@ -94,9 +97,10 @@ invent checks or report commands that could not run.
 
 ## 5. Start The Integrated Runtime
 
-Only after every selected repository has opened its PR, run any shared manual
-verification requested by the repositories. No shared runtime coordinator is
-defined for this workspace; use each repository's documented manual checks.
+Only after every selected repository has opened and self-assigned its PR/MR,
+run any shared manual verification requested by the repositories. No shared
+runtime coordinator is defined for this workspace; use each repository's
+documented manual checks.
 
 Workers must return worktree paths and manual verification results without
 starting unrelated partial runtimes.
