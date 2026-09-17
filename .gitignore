@@ -1,3 +1,6 @@
 # Local sibling worktrees used for pull requests
 /pilah-be-worktrees/
 /pilah-mobile-worktrees/
+
+# Local credentials
+/.env
