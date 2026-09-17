@@ -42,10 +42,10 @@ for each repository.
 Inspect all selected repositories concurrently before creating any worktree:
 
 - resolve repository root, baseline branch, remote, and hosting provider;
-- require a clean baseline checkout;
-- fetch `origin/main` for both repositories;
-- require both canonical checkouts to be on `main`, create each worktree from
-  `origin/main`, and target `main` for each PR;
+- require clean `staging` checkouts;
+- fetch `origin/staging` for both repositories;
+- require both canonical checkouts to be on `staging`, create each worktree from
+  `origin/staging`, and target `staging` for each PR;
 - require the exact shared branch and worktree path not to exist locally or
   remotely;
 - read `AGENTS.md` and identify the documented setup and validation

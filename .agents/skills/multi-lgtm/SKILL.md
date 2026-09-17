@@ -37,7 +37,7 @@ number, URL, head SHA, head branch, base branch, worktree path, and readiness:
 - current worktree is clean and matches the PR head branch;
 - worktree path is inside that repository's `<repo>-worktrees` directory;
 - primary checkout and repository baseline branch are identified; both
-  repositories use `main`.
+  repositories use `staging`.
 - Before removing a worktree, ensure any repository-specific runtime is stopped
   if one was started. Never remove a dirty worktree.
 
