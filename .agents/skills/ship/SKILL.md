@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Create an isolated sibling worktree under the repository parent's <repo>-worktrees directory, implement a requested feature or fix on a prompt-derived feature/<name> or fix/<name> branch, validate it with the repository's own checks, create atomic conventional commits, push the branch, and open a GitHub pull request or GitLab merge request. Use `staging` as the checkout baseline and PR/MR target unless the user explicitly names another branch; never infer `main`. Use ONLY when the user's message starts with the literal word `ship` followed by a prompt. This trigger is mandatory regardless of change size, simplicity, or whether the user explicitly mentions a PR/MR.
+description: Create an isolated sibling worktree under the repository parent's <repo>-worktrees directory, implement a requested feature or fix on a prompt-derived feature/<name> or fix/<name> branch, or a Linear-linked feature/<issue-id>-<title> branch, validate it with the repository's own checks, create atomic conventional commits, push the branch, and open a GitHub pull request or GitLab merge request. Use `staging` as the checkout baseline and PR/MR target unless the user explicitly names another branch; never infer `main`. Use ONLY when the user's message starts with the literal word `ship` followed by a prompt. This trigger is mandatory regardless of change size, simplicity, or whether the user explicitly mentions a PR/MR.
 argument-hint: "<feature or fix prompt>"
 compatibility: Requires git and either gh or glab; run from an existing Git repository.
 metadata:
@@ -31,9 +31,9 @@ Execute the complete delivery workflow from an existing repository checkout. Wor
   - never infer `main` or silently fall back to the remote default branch when the resolved branch is missing.
 - Optionally resolve a referenced Linear issue before naming the branch:
   - If the prompt supplies a Linear issue identifier or asks to use an existing issue, use the configured Linear MCP tools to resolve it.
-  - If an issue is resolved, use its human-readable identifier as `<issue-id>` and set the branch to `feature/<issue-id>`, overriding the normal feature/fix name.
+  - If an issue is resolved, use its lowercase human-readable identifier as `<issue-id>` and derive a short lowercase kebab-case title slug as `<title>` from the issue title. Set the branch to `feature/<issue-id>-<title>`, overriding the normal feature/fix name. For example: `feature/eng-123-fix-login-error`.
   - If no issue is supplied or found, keep the normal derived `feature/<name>` or `fix/<name>` branch and do not create an issue.
-  - Only create a Linear issue when the user explicitly asks; use the returned identifier for `feature/<issue-id>`.
+  - Only create a Linear issue when the user explicitly asks; use the returned identifier and title slug for `feature/<issue-id>-<title>`.
 - If no repository path is given, use the current repository. Resolve its main checkout with `git rev-parse --show-toplevel`. Derive the worktree parent from the main checkout's actual parent directory; do not assume a fixed root such as `~/projects`.
 - Inspect `git status --short --branch`, remotes, the default branch, project documentation, contribution instructions, and available scripts before changing anything.
 - Do not overwrite, stash, reset, or delete existing work. If the main checkout has uncommitted changes, stop and report that it must be clean before shipping.
@@ -59,8 +59,8 @@ For example, a main checkout at `/work/project-a` uses `/work/project-a-worktree
   - worktree root: `<parent>/<repo>-worktrees`;
   - worktree path: `<parent>/<repo>-worktrees/<kind>-<name>`;
   - branch: `<kind>/<name>`.
-  - When a Linear issue is resolved, set `kind` to `feature` and `name` to its `<issue-id>`.
-  - The branch must therefore be `feature/name` or `fix/name`; the worktree directory is `<kind>-<name>`.
+  - When a Linear issue is resolved, set `kind` to `feature` and `name` to `<issue-id>-<title>`.
+  - The branch must therefore be `feature/<issue-id>-<title>` for a Linear-linked change, or `feature/<name>` / `fix/<name>` otherwise; the worktree directory is `<kind>-<name>`.
 - Create the parent directory only when needed, then create the worktree from `origin/<baseline_branch>`:
 
 ```bash
