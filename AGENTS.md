@@ -18,10 +18,8 @@
   in sibling worktrees for both submodules.
 - If the request supplies or explicitly asks for an existing Linear issue, use
   the configured Linear MCP to resolve it and name the shared branch
-  `feature/<issue-id>-<title>`, using the lowercase issue identifier and a
-  short kebab-case title slug (for example,
-  `feature/eng-123-fix-login-error`). Do not create an issue unless explicitly
-  requested.
+  `feature/<issue-id>`, using the lowercase issue identifier (for example,
+  `feature/eng-123`). Do not create an issue unless explicitly requested.
 - Validate, push, and open one PR per selected repository. Do not commit
   application changes to the root checkout or either canonical submodule
   checkout.
