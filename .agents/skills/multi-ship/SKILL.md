@@ -27,14 +27,12 @@ for each repository.
   tools before deriving the shared branch:
   - If the prompt supplies an issue identifier or asks to use an existing issue,
     resolve it and set the exact shared branch to
-    `feature/<issue-id>-<title>`, using the lowercase identifier and a short
-    lowercase kebab-case title slug (for example,
-    `feature/eng-123-fix-login-error`).
+    `feature/<issue-id>`, using the lowercase identifier (for example,
+    `feature/eng-123`).
   - If no issue is supplied or found, derive one `feature` or `fix` kind and one
     kebab-case `<name>` from the full request, then use `<kind>/<name>`.
   - Never create a Linear issue automatically. Only create one when the user
-    explicitly asks, then use its returned identifier and title slug in
-    `feature/<issue-id>-<title>`.
+    explicitly asks, then use its returned identifier in `feature/<issue-id>`.
 - Pass one resolved issue identifier and branch to every repository worker; do
   not let workers independently search for or create a different issue.
 - Split the request into repository-specific responsibilities. Establish any
