@@ -30,7 +30,9 @@ both PRs, then merges and cleans them up only after both are ready.
 
 Launch one read-only preflight worker per repository in one parallel tool call.
 Each worker must perform the global `lgtm` checks and return the resolved PR
-number, URL, head SHA, head branch, base branch, worktree path, and readiness:
+number, URL, head SHA, head branch, base branch, worktree path, stack membership,
+and readiness. For a stack PR, readiness covers every PR that its
+`gh stack merge <number>` would merge.
 
 - PR is open, not draft, approved, and mergeable;
 - required checks are successful, not pending;
@@ -48,9 +50,10 @@ all-repository gate.
 
 Only after every preflight passes, launch one merge worker per repository in a
 single parallel tool call. Pin each worker to the preflighted PR number and head
-SHA. Each worker must follow global `lgtm`: merge with repository policy,
-confirm `MERGED`, delete and verify the remote branch, then remove the clean
-linked worktree without force.
+SHA. Each worker follows global `lgtm`: use `gh stack merge` for stack PRs and
+ordinary merge/branch cleanup only for standalone PRs. Never manually delete a
+stack branch or remove its worktree while any stack PR remains open; sync and
+verify the remaining stack instead.
 
 ## 4. Handle partial runtime failure
 
@@ -65,5 +68,5 @@ transactional. If a merge or cleanup command fails after execution begins:
 ## 5. Report
 
 Return one line per repository with PR URL, merge method and result, remote
-branch deletion, and removed worktree path. Finish with an overall `complete`,
-`blocked`, or `partial` status.
+branch state, and worktree cleanup or deferral. Finish with an overall
+`complete`, `blocked`, or `partial` status.
