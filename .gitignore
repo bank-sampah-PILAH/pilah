@@ -4,3 +4,11 @@
 
 # Local credentials
 /.env
+
+# Artifacts
+/artifacts/
+/.playwright-cli/
+/.pi/
+
+# Personal Skill
+/.agents/skills/pilah-weekly-evidence-report
