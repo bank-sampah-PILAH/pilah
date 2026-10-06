@@ -118,16 +118,21 @@ flutter build apk --debug -t lib/main_development.dart
 flutter build web --release -t lib/main_development.dart
 ```
 
-Run the development web server from the `pilah-mobile` root:
+After the release build succeeds, serve `build/web` from the `pilah-mobile`
+root with Python's standard-library server:
 
 ```bash
-flutter run -d web-server --web-hostname 127.0.0.1 --web-port 7357 -t lib/main_development.dart
+python3 -m http.server 7357 --bind 127.0.0.1 --directory build/web
 ```
 
-Use a free local port if 7357 is occupied. Load and follow the workspace
-`playwright-cli` skill. Test the changed flow at desktop and mobile-sized
-viewports (for example, 1440×900 and 390×844), inspect snapshots, and check
-browser errors and failed requests. Use local test/demo accounts only.
+Use a free local port if 7357 is occupied. Verify `playwright-cli` is
+available; otherwise check for a local Playwright CLI with
+`npx --no-install playwright --version` and use `npx playwright cli`. If neither
+is available, ask a maintainer to install `@playwright/cli` with
+`npm install -g @playwright/cli@latest` before continuing. Open the local URL,
+inspect snapshots at 1440×900 and 390×844 with `resize`, exercise the changed
+flow, check `console` and `requests`, capture applicable screenshots, then
+close the browser. Use local test/demo accounts only.
 
 The web product currently supports Super Admin, Pengurus, and Pengurus Induk.
 Exercise affected supported roles; do not treat Nasabah as a supported web
@@ -174,10 +179,13 @@ git push --set-upstream origin <kind>/<name>
 - Verify `origin/<target_branch>` exists before opening the PR/MR.
 - Pass `target_branch` explicitly to the hosting CLI's base/target-branch option; do not rely on the repository default.
 
-- Detect the hosting CLI from the remote and installed tools:
-  - GitHub remote or `gh` available: use `gh pr create`;
-  - GitLab remote or `glab` available: use `glab mr create`;
-  - if the required CLI is unavailable, stop after the successful push and report the exact command needed; do not fabricate a link.
+- Select the hosting CLI from the remote provider, then verify that matching
+  CLI is installed:
+  - GitHub remote with `gh` available: use `gh pr create`;
+  - GitLab remote with `glab` available: use `glab mr create`;
+  - if the provider is unsupported or its matching CLI is unavailable, stop
+    after the successful push and report the exact blocker; do not choose a CLI
+    only because it is installed or fabricate a link.
 - Use `target_branch` as the PR/MR target; it defaults to `staging` unless the prompt explicitly names another target.
 - Derive a concise PR/MR title from the prompt and commits. Use the relevant conventional type prefix only when it improves clarity; do not duplicate noisy prefixes.
 - Write a focused description containing summary, key changes, and testing. Include the exact validation commands. Use a temporary file in the session scratchpad for multi-line descriptions, not a new project file.
