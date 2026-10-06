@@ -94,8 +94,9 @@ Super Admin, Pengurus, and Pengurus Induk; do not claim Nasabah web support.
 Capture screenshots for affected roles under `artifacts/pr-<PR_NUMBER>/` only
 for user-visible changes. Playwright mobile emulation is not native-app
 verification. For documentation-only changes, run `git diff --check` and any
-configured documentation checks; skip app builds, browser checks, and
-screenshots. Do not invent checks or report commands that could not run.
+configured documentation checks; skip Flutter analyze/tests, app builds,
+browser checks, and screenshots. Do not invent checks or report commands that
+could not run.
 
 ## 4. Coordinate outcomes
 

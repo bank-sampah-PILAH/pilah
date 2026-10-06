@@ -37,8 +37,8 @@
 
 - Backend: follow `pilah-be/AGENTS.md` and its documented Django checks.
 - Mobile: follow `pilah-mobile/AGENTS.md` and its documented Flutter checks.
-- Flutter feature deliveries target native mobile and web unless the prompt
-  narrows the platforms. Web supports Super Admin, Pengurus, and Pengurus Induk
-  only; follow the workspace `ship` skill's cross-platform validation.
-  Playwright mobile emulation is not native-app verification.
+- Flutter code or behavior deliveries target native mobile and web unless the
+  prompt narrows the platforms. Web supports Super Admin, Pengurus, and
+  Pengurus Induk only; follow the workspace `ship` skill's cross-platform
+  validation. Playwright mobile emulation is not native-app verification.
 - Do not commit credentials, generated runtime files, or local databases.

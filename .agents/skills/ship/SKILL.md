@@ -109,9 +109,9 @@ Fix failures caused by the implementation and rerun the failed checks. Do not by
 
 ### PILAH Flutter: validate web and native mobile
 
-For `pilah-mobile` code or behavior changes, target both web and native mobile
-unless the prompt explicitly narrows the platforms. Alongside `flutter analyze`
-and `flutter test`, run:
+For `pilah-mobile` code or behavior changes, run `flutter analyze` and
+`flutter test`, and target both web and native mobile unless the prompt
+explicitly narrows the platforms. Also run:
 
 ```bash
 flutter build apk --debug -t lib/main_development.dart
@@ -140,8 +140,9 @@ screenshots unless the user explicitly requests that. Skip screenshots for
 non-UI changes; never manufacture proof. A Playwright mobile viewport proves
 responsive web, not the native app. Report separately if native emulator/device
 smoke testing was unavailable. For documentation-only changes, run the
-repository's documentation checks and `git diff --check`; skip app builds,
-browser smoke tests, and screenshots when no UI behavior changed.
+repository's documentation checks and `git diff --check`; skip Flutter
+analyze/tests, app builds, browser smoke tests, and screenshots when no UI
+behavior changed.
 
 ## 5. Create atomic commits
 
