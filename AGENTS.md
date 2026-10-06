@@ -7,8 +7,10 @@
 - `pilah-be` and `pilah-mobile` are Git submodules. Keep application changes
   inside the corresponding submodule; use this root repository for workspace
   wiring and shared agent configuration.
-- Both application repositories use `staging` as their canonical checkout,
-  baseline, and PR target. Do not infer `main` for any repository workflow.
+- Both application repositories use `staging` as the worktree baseline and PR
+  target. When nested here, their submodule checkouts may be detached at the
+  root-pinned commits; do not switch those checkouts or modify root pins while
+  shipping. Do not infer `main`; use it only when explicitly named.
 
 ## Multi-repository delivery
 
