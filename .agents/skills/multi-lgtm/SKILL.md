@@ -1,8 +1,8 @@
 ---
-name: dingsglobal-multi-lgtm
+name: multi-lgtm
 description: Preflights, merges, and cleans up matching PILAH pull requests across pilah-be and pilah-mobile using parallel phases. Use when LGTM, merge, approve-and-merge, or cleanup targets the same branch in both repositories.
 argument-hint: "<branch, PRs, or feature name> in <pilah-be|pilah-mobile> and <pilah-be|pilah-mobile>"
-compatibility: Requires git, gh, and task delegation; intended for worktrees created by dingsglobal-multi-ship.
+compatibility: Requires git, gh, and task delegation; intended for worktrees created by multi-ship.
 metadata:
   author: CommandCode
   version: "1.0"
@@ -30,14 +30,16 @@ both PRs, then merges and cleans them up only after both are ready.
 
 Launch one read-only preflight worker per repository in one parallel tool call.
 Each worker must perform the global `lgtm` checks and return the resolved PR
-number, URL, head SHA, head branch, base branch, worktree path, and readiness:
+number, URL, head SHA, head branch, base branch, worktree path, stack membership,
+and readiness. For a stack PR, readiness covers every PR that its
+`gh stack merge <number>` would merge.
 
 - PR is open, not draft, approved, and mergeable;
 - required checks are successful, not pending;
 - current worktree is clean and matches the PR head branch;
 - worktree path is inside that repository's `<repo>-worktrees` directory;
 - primary checkout and repository baseline branch are identified; both
-  repositories use `main`.
+  repositories use `staging`.
 - Before removing a worktree, ensure any repository-specific runtime is stopped
   if one was started. Never remove a dirty worktree.
 
@@ -48,9 +50,10 @@ all-repository gate.
 
 Only after every preflight passes, launch one merge worker per repository in a
 single parallel tool call. Pin each worker to the preflighted PR number and head
-SHA. Each worker must follow global `lgtm`: merge with repository policy,
-confirm `MERGED`, delete and verify the remote branch, then remove the clean
-linked worktree without force.
+SHA. Each worker follows global `lgtm`: use `gh stack merge` for stack PRs and
+ordinary merge/branch cleanup only for standalone PRs. Never manually delete a
+stack branch or remove its worktree while any stack PR remains open; sync and
+verify the remaining stack instead.
 
 ## 4. Handle partial runtime failure
 
@@ -65,5 +68,5 @@ transactional. If a merge or cleanup command fails after execution begins:
 ## 5. Report
 
 Return one line per repository with PR URL, merge method and result, remote
-branch deletion, and removed worktree path. Finish with an overall `complete`,
-`blocked`, or `partial` status.
+branch state, and worktree cleanup or deferral. Finish with an overall
+`complete`, `blocked`, or `partial` status.

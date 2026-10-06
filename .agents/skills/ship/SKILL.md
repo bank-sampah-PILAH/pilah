@@ -135,20 +135,11 @@ role. For each affected role, capture screenshots of the working feature at
 both viewports, including important success/error states when relevant. Once
 the PR number is known, store the proof in the code-only folder
 `artifacts/pr-<PR_NUMBER>/`; if needed, keep captures temporarily and move them
-after PR creation. Example:
-
-```bash
-mkdir -p "artifacts/pr-${PR_NUMBER}"
-playwright-cli screenshot --filename="artifacts/pr-${PR_NUMBER}/web-desktop.png"
-playwright-cli resize 390 844
-playwright-cli screenshot --filename="artifacts/pr-${PR_NUMBER}/web-mobile.png"
-```
-
-Repeat for affected roles/states. These are local QA artifacts: do not stage or
-commit screenshots unless the user explicitly requests that. Skip screenshots
-for non-UI changes; never manufacture proof. A Playwright mobile viewport
-proves responsive web, not the native app. Report separately if native
-emulator/device smoke testing was unavailable.
+after PR creation. These are local QA artifacts: do not stage or commit
+screenshots unless the user explicitly requests that. Skip screenshots for
+non-UI changes; never manufacture proof. A Playwright mobile viewport proves
+responsive web, not the native app. Report separately if native emulator/device
+smoke testing was unavailable.
 
 ## 5. Create atomic commits
 

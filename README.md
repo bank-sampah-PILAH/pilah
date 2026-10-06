@@ -109,8 +109,7 @@ backend changes in `pilah-be` and mobile changes in `pilah-mobile`.
 
 ## Git Workflow
 
-- Keep canonical submodule checkouts on `main` and clean; ship worktrees from
-  `staging` and target PRs at `staging` unless explicitly overridden.
+- Keep canonical submodule checkouts on `staging` and clean.
 - Use a sibling worktree for feature or fix work.
 - Use the shared multi-ship workflow when one change spans both applications.
 - Use the shared multi-LGTM workflow to preflight, merge, and clean up matching

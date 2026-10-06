@@ -86,10 +86,11 @@ repository.
 
 The backend worker must use the documented Django test command. The mobile
 worker must follow the workspace `ship` skill's cross-platform validation:
-run Flutter analyze/tests and native/web builds, then use `playwright-cli` for
-web smoke tests and screenshot evidence for user-visible changes. Web role
-coverage is limited to Super Admin, Pengurus, and Pengurus Induk; do not claim
-Nasabah web support. Playwright mobile emulation is not native-app
+run Flutter analyze/tests and Android/web builds, then use `playwright-cli` for
+desktop and mobile-sized web smoke tests. Web role coverage is limited to
+Super Admin, Pengurus, and Pengurus Induk; do not claim Nasabah web support.
+Capture screenshots for affected roles under `artifacts/pr-<PR_NUMBER>/` only
+for user-visible changes. Playwright mobile emulation is not native-app
 verification. Do not invent checks or report commands that could not run.
 
 ## 4. Coordinate outcomes
