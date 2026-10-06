@@ -1,0 +1,218 @@
+---
+name: ship
+description: Create an isolated sibling worktree under the repository parent's <repo>-worktrees directory, implement a requested feature or fix on a prompt-derived feature/<name> or fix/<name> branch, or a Linear-linked feature/<issue-id> branch, validate it with the repository's own checks, create atomic conventional commits, push the branch, and open a GitHub pull request or GitLab merge request. Use `staging` as the checkout baseline and PR/MR target unless the user explicitly names another branch; never infer `main`. Use ONLY when the user's message starts with the literal word `ship` followed by a prompt. This trigger is mandatory regardless of change size, simplicity, or whether the user explicitly mentions a PR/MR.
+argument-hint: "<feature or fix prompt>"
+compatibility: Requires git and either gh or glab; run from an existing Git repository.
+metadata:
+  author: CommandCode
+  version: "1.0"
+---
+
+# Ship a feature or fix
+
+Execute the complete delivery workflow from an existing repository checkout. Work in a new sibling worktree, never in the main checkout.
+
+## Invocation contract
+
+- This skill is mandatory whenever the user's message starts with the literal word `ship` followed by a prompt, including small, one-file, documentation-only, configuration-only, or otherwise trivial changes.
+- Do not reinterpret, downgrade, or bypass this workflow because the requested change seems too small for a branch, commit, push, or PR/MR.
+- If the user's message does not start with `ship`, this skill must not be selected solely because the request involves implementation work.
+
+## 1. Establish the repository and request
+
+- Parse the prompt to determine:
+  - change kind: `feature` or `fix`; use `fix` for bug, regression, broken behavior, or correction language, otherwise use `feature`;
+  - a short kebab-case `<name>` that accurately summarizes the requested change.
+- Resolve the baseline and target branches before creating worktrees:
+  - default both `baseline_branch` and `target_branch` to `staging`;
+  - apply this `staging` default independently to every repository;
+  - if the prompt explicitly names another checkout or base branch, use it for `baseline_branch`;
+  - if the prompt explicitly names another PR/MR target, use it for `target_branch`;
+  - never infer `main` or silently fall back to the remote default branch when the resolved branch is missing.
+- Optionally resolve a referenced Linear issue before naming the branch:
+  - If the prompt supplies a Linear issue identifier or asks to use an existing issue, use the configured Linear MCP tools to resolve it.
+  - If an issue is resolved, use its lowercase human-readable identifier as `<issue-id>`. Set the branch to `feature/<issue-id>`, overriding the normal feature/fix name. For example: `feature/eng-123`.
+  - If no issue is supplied or found, keep the normal derived `feature/<name>` or `fix/<name>` branch and do not create an issue.
+  - Only create a Linear issue when the user explicitly asks; use the returned identifier for `feature/<issue-id>`.
+- If no repository path is given, use the current repository. Resolve its main checkout with `git rev-parse --show-toplevel`. Derive the worktree parent from the main checkout's actual parent directory; do not assume a fixed root such as `~/projects`.
+- Inspect `git status --short --branch`, remotes, the default branch, project documentation, contribution instructions, and available scripts before changing anything.
+- Do not overwrite, stash, reset, or delete existing work. If the main checkout has uncommitted changes, stop and report that it must be clean before shipping.
+- Do not open a PR/MR from `baseline_branch`, `staging`, `main`, `master`, or another protected baseline branch directly.
+
+## 2. Create the sibling worktree
+
+The worktree is a sibling directory next to the main checkout:
+
+```text
+<parent>/
+├── my-app/
+└── my-app-worktrees/
+    ├── feature-auth/
+    └── fix-navbar/
+```
+
+For example, a main checkout at `/work/project-a` uses `/work/project-a-worktrees`, not `/projects/project-a-worktrees`.
+
+- Derive `<repo>` from the main checkout directory name.
+- Derive `<parent>` from the main checkout's parent directory.
+- Set:
+  - worktree root: `<parent>/<repo>-worktrees`;
+  - worktree path: `<parent>/<repo>-worktrees/<kind>-<name>`;
+  - branch: `<kind>/<name>`.
+  - When a Linear issue is resolved, set `kind` to `feature` and `name` to `<issue-id>`.
+  - The branch must therefore be `feature/<issue-id>` for a Linear-linked change, or `feature/<name>` / `fix/<name>` otherwise; the worktree directory is `<kind>-<name>`.
+- Create the parent directory only when needed, then create the worktree from `origin/<baseline_branch>`:
+
+```bash
+repo_root="$(git rev-parse --show-toplevel)"
+repo="$(basename "$repo_root")"
+parent="$(dirname "$repo_root")"
+worktree_root="$parent/${repo}-worktrees"
+worktree_path="$worktree_root/<kind>-<name>"
+mkdir -p "$worktree_root"
+git fetch origin <baseline_branch>
+git worktree add -b <kind>/<name> "$worktree_path" origin/<baseline_branch>
+if [ -d "$repo_root/.agents" ]; then
+  mkdir -p "$worktree_path/.agents"
+  cp -a "$repo_root/.agents/." "$worktree_path/.agents/"
+  if [ ! -d "$worktree_path/.agents" ]; then
+    printf 'Failed to copy local agent instructions into %s\n' "$worktree_path" >&2
+    exit 1
+  fi
+fi
+```
+
+- `.agents/` is intentionally gitignored in repositories that use local agent instructions and skills, so create the destination and copy its contents explicitly after creating the worktree. The `/.` source form includes hidden files and avoids relying on Git's treatment of ignored files. Do not omit this step or assume `git worktree add` includes ignored files.
+- If either the branch or worktree path already exists, stop and ask for a different name. Never reuse or delete it automatically.
+- Perform all implementation, tests, commits, pushes, and PR/MR commands from the new worktree.
+
+## 3. Understand and implement
+
+- Read the repository's README, contribution guide, local agent instructions, and the files relevant to the requested behavior.
+- Use the resolved Linear issue only as branch and delivery context unless the user explicitly asks to update it.
+- Load and follow the workspace-local `tdd` skill before implementing. Use its red-green-refactor workflow one vertical behavior slice at a time: write one behavior test, make it pass with the minimum code, then continue. Do not write the complete test suite before implementation.
+- Follow existing language, framework, package-manager, formatting, and testing conventions. Do not add unrelated refactors or dependencies.
+- Implement the prompt completely, including focused tests for new or changed behavior when the repository has a test convention.
+- Keep changes easy to review and separate responsibilities so each commit represents one coherent change.
+
+## 4. Validate
+
+Run the checks documented by the repository first. If none are documented, detect and run applicable checks without inventing project files:
+
+- JavaScript/TypeScript: use the detected package manager from its lockfile; run available `format:check`, `lint`, `typecheck`, and `test` scripts.
+- Go: run `gofmt` in check/apply mode according to project convention, then `go vet ./...`, `go test ./...`, and project lint commands when configured.
+- Rust: run `cargo fmt --check`, `cargo check`, `cargo test`, and configured clippy checks.
+- Python: run configured formatter, linter, type checker, and test commands; prefer project scripts or `pyproject.toml` tooling.
+- Other projects: use their documented formatter, linter, build, and test commands.
+
+Fix failures caused by the implementation and rerun the failed checks. Do not bypass hooks or use `--no-verify`. Record the exact successful validation commands for the final response. If a check cannot run because a required tool or service is unavailable, stop before committing and report the blocker.
+
+### PILAH Flutter: validate web and native mobile
+
+For `pilah-mobile` feature or fix deliveries, target both web and native mobile
+unless the prompt explicitly narrows the platforms. Alongside `flutter analyze`
+and `flutter test`, run:
+
+```bash
+flutter build apk --debug -t lib/main_development.dart
+flutter build web --release -t lib/main_development.dart
+```
+
+Run the development web server from the `pilah-mobile` root:
+
+```bash
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 7357 -t lib/main_development.dart
+```
+
+Use a free local port if 7357 is occupied. Load and follow the workspace
+`playwright-cli` skill. Test the changed flow at desktop and mobile-sized
+viewports (for example, 1440×900 and 390×844), inspect snapshots, and check
+browser errors and failed requests. Use local test/demo accounts only.
+
+The web product currently supports Super Admin, Pengurus, and Pengurus Induk.
+Exercise affected supported roles; do not treat Nasabah as a supported web
+role. For each affected role, capture screenshots of the working feature at
+both viewports, including important success/error states when relevant. Once
+the PR number is known, store the proof in the code-only folder
+`artifacts/pr-<PR_NUMBER>/`; if needed, keep captures temporarily and move them
+after PR creation. Example:
+
+```bash
+mkdir -p "artifacts/pr-${PR_NUMBER}"
+playwright-cli screenshot --filename="artifacts/pr-${PR_NUMBER}/web-desktop.png"
+playwright-cli resize 390 844
+playwright-cli screenshot --filename="artifacts/pr-${PR_NUMBER}/web-mobile.png"
+```
+
+Repeat for affected roles/states. These are local QA artifacts: do not stage or
+commit screenshots unless the user explicitly requests that. Skip screenshots
+for non-UI changes; never manufacture proof. A Playwright mobile viewport
+proves responsive web, not the native app. Report separately if native
+emulator/device smoke testing was unavailable.
+
+## 5. Create atomic commits
+
+- Review `git diff`, `git diff --check`, and `git status`.
+- Split unrelated changes into multiple commits and keep each commit single-responsibility.
+- For TDD implementation work, keep the phases in separate scoped Conventional Commits:
+  - `test(<scope>): add failing test for ...`
+  - `feat(<scope>): implement ...`
+  - `refactor(<scope>): ...` only after the tests are green and cleanup is useful.
+- Do not combine a test with its implementation or refactor. Repeat the scoped `test` -> `feat` -> optional `refactor` sequence for each independent vertical behavior slice.
+- Use scoped Conventional Commits with a space after the colon:
+  - `feat(<scope>): add ...`
+  - `fix(<scope>): correct ...`
+  - `test(<scope>): cover ...`
+  - `refactor(<scope>): ...`
+  - `docs(<scope>): ...`
+- Use imperative summaries, no trailing period, and keep subjects concise. Include a body only when the why is non-obvious, or for breaking, security, migration, or revert context.
+- Before each commit, inspect the staged diff and commit only the files for that responsibility. Never amend an existing commit.
+- Capture each resulting commit SHA and URL after committing. The commit list must be ordered oldest to newest.
+
+## 6. Push and open the PR/MR
+
+- Confirm the current branch is exactly the new non-default branch, then push only it:
+
+```bash
+git push --set-upstream origin <kind>/<name>
+```
+
+- Verify `origin/<target_branch>` exists before opening the PR/MR.
+- Pass `target_branch` explicitly to the hosting CLI's base/target-branch option; do not rely on the repository default.
+
+- Detect the hosting CLI from the remote and installed tools:
+  - GitHub remote or `gh` available: use `gh pr create`;
+  - GitLab remote or `glab` available: use `glab mr create`;
+  - if the required CLI is unavailable, stop after the successful push and report the exact command needed; do not fabricate a link.
+- Use `target_branch` as the PR/MR target; it defaults to `staging` unless the prompt explicitly names another target.
+- Derive a concise PR/MR title from the prompt and commits. Use the relevant conventional type prefix only when it improves clarity; do not duplicate noisy prefixes.
+- Write a focused description containing summary, key changes, and testing. Include the exact validation commands. Use a temporary file in the session scratchpad for multi-line descriptions, not a new project file.
+- Create the PR/MR with the CLI and capture its returned URL and title.
+- Immediately assign the authenticated user to the new PR/MR and verify the command succeeds:
+  - GitHub: `gh pr edit "<pr-url>" --add-assignee "@me"`.
+  - GitLab: `self_username="$(glab api user | jq -r '.username')"` followed by `glab mr update --assignee "$self_username"` from the new worktree.
+- Do not assign reviewers, enable auto-merge, delete the source branch, or mark draft unless explicitly requested.
+
+## 7. Final response
+
+Return only a compact rich-presence summary using this exact structure:
+
+```text
+Implemented: <one-line feature/fix summary>
+
+Commits: <commit 1 link>, <commit 2 link>, so on
+MR: <MR/PR link and title>
+Validated with: <linter, formatter, typecheck, test, build, etc>
+Step to verify changes: <short manual verification steps>
+```
+
+- Use `MR:` for both GitHub pull requests and GitLab merge requests.
+- Replace `so on` with the complete comma-separated commit links; never leave placeholder text.
+- Include the worktree path and branch in the one-line implementation summary only when useful.
+- If no MR/PR was created because a required CLI or validation blocker stopped the workflow, state that compactly in the `MR:` line instead of inventing a URL.
+
+## Safety boundaries
+
+- Ask before any destructive operation or any action affecting a shared remote beyond pushing the new branch and opening the requested PR/MR.
+- Never force-push, reset hard, delete branches/worktrees, modify the main checkout, skip validation, bypass hooks, or commit secrets.
+- Never claim a test, commit, push, or MR/PR succeeded without inspecting its command result.

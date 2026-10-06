@@ -14,7 +14,7 @@
 ## Multi-repository delivery
 
 - When a request begins with literal `ship` and names both repositories, load
-  `dingsglobal-multi-ship` together with the global `ship` skill.
+  the workspace `multi-ship` skill together with the workspace `ship` skill.
 - Derive one change kind and kebab-case branch name, then use the same branch
   in sibling worktrees for both submodules.
 - Validate, push, and open one PR per selected repository. Do not commit
@@ -33,4 +33,8 @@
 - Backend: follow `pilah-be/AGENTS.md`; prefer its documented `uv`-based Django
   checks when `uv` is available.
 - Mobile: follow `pilah-mobile/AGENTS.md` and its documented Flutter checks.
+- Flutter feature deliveries target native mobile and web unless the prompt
+  narrows scope. Web currently supports Super Admin, Pengurus, and Pengurus
+  Induk only; follow the workspace `ship` skill's cross-platform validation.
+  Playwright mobile emulation is not native-app verification.
 - Do not commit credentials, generated runtime files, or local databases.
