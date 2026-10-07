@@ -7,8 +7,10 @@
 - `pilah-be` and `pilah-mobile` are Git submodules. Keep application changes
   inside the corresponding submodule; use this root repository for workspace
   wiring and shared agent configuration.
-- Both application repositories use `staging` as their canonical checkout,
-  baseline, and PR target. Do not infer `main` for any repository workflow.
+- Both application repositories use `staging` as the worktree baseline and PR
+  target. When nested here, their submodule checkouts may be detached at the
+  root-pinned commits; do not switch those checkouts or modify root pins while
+  shipping. Do not infer `main`; use it only when explicitly named.
 
 ## Multi-repository delivery
 
@@ -35,4 +37,8 @@
 
 - Backend: follow `pilah-be/AGENTS.md` and its documented Django checks.
 - Mobile: follow `pilah-mobile/AGENTS.md` and its documented Flutter checks.
+- Flutter code or behavior deliveries target native mobile and web unless the
+  prompt narrows the platforms. Web supports Super Admin, Pengurus, and
+  Pengurus Induk only; follow the workspace `ship` skill's cross-platform
+  validation. Playwright mobile emulation is not native-app verification.
 - Do not commit credentials, generated runtime files, or local databases.

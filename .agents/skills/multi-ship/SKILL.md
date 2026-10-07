@@ -44,10 +44,12 @@ for each repository.
 Inspect all selected repositories concurrently before creating any worktree:
 
 - resolve repository root, baseline branch, remote, and hosting provider;
-- require clean `staging` checkouts;
+- require both canonical application checkouts to be clean; if nested as
+  submodules, they may be detached at root-pinned commits and must not be
+  switched;
 - fetch `origin/staging` for both repositories;
-- require both canonical checkouts to be on `staging`, create each worktree from
-  `origin/staging`, and target `staging` for each PR;
+- create each isolated worktree from `origin/staging` and target `staging` for
+  each PR;
 - require the exact shared branch and worktree path not to exist locally or
   remotely;
 - read `AGENTS.md` and identify the documented setup and validation
@@ -84,9 +86,17 @@ The explicit multi-project request authorizes all named workers. Do not request
 separate permission per repository. Do not let one worker modify another
 repository.
 
-The backend worker must use the documented Django test command. The mobile
-worker must use the documented Flutter analyze and test commands. Do not
-invent checks or report commands that could not run.
+For backend code changes, run the documented Django test command. For mobile
+code changes, follow the workspace `ship` skill's cross-platform validation:
+run Flutter analyze/tests and Android/web builds, then use `playwright-cli` for
+desktop and mobile-sized web smoke tests. Web role coverage is limited to
+Super Admin, Pengurus, and Pengurus Induk; do not claim Nasabah web support.
+Capture screenshots for affected roles under `artifacts/pr-<PR_NUMBER>/` only
+for user-visible changes. Playwright mobile emulation is not native-app
+verification. For documentation-only changes, run `git diff --check` and any
+configured documentation checks; skip Flutter analyze/tests, app builds,
+browser checks, and screenshots. Do not invent checks or report commands that
+could not run.
 
 ## 4. Coordinate outcomes
 

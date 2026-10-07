@@ -107,6 +107,48 @@ Run the checks documented by the repository first. If none are documented, detec
 
 Fix failures caused by the implementation and rerun the failed checks. Do not bypass hooks or use `--no-verify`. Record the exact successful validation commands for the final response. If a check cannot run because a required tool or service is unavailable, stop before committing and report the blocker.
 
+### PILAH Flutter: validate web and native mobile
+
+For `pilah-mobile` code or behavior changes, run `flutter analyze` and
+`flutter test`, and target both web and native mobile unless the prompt
+explicitly narrows the platforms. Also run:
+
+```bash
+flutter build apk --debug -t lib/main_development.dart
+flutter build web --release -t lib/main_development.dart
+```
+
+After the release build succeeds, serve `build/web` from the `pilah-mobile`
+root with Python's standard-library server:
+
+```bash
+python3 -m http.server 7357 --bind 127.0.0.1 --directory build/web
+```
+
+Use a free local port if 7357 is occupied. Verify `playwright-cli` is
+available; otherwise check for a local Playwright CLI with
+`npx --no-install playwright --version` and use `npx playwright cli`. If neither
+is available, ask a maintainer to install `@playwright/cli` with
+`npm install -g @playwright/cli@latest` before continuing. Open the local URL,
+inspect snapshots at 1440×900 and 390×844 with `resize`, exercise the changed
+flow, check `console` and `requests`, capture applicable screenshots, then
+close the browser. Use local test/demo accounts only.
+
+The web product currently supports Super Admin, Pengurus, and Pengurus Induk.
+Exercise affected supported roles; do not treat Nasabah as a supported web
+role. For each affected role, capture screenshots of the working feature at
+both viewports, including important success/error states when relevant. Once
+the PR number is known, store the proof in the code-only folder
+`artifacts/pr-<PR_NUMBER>/`; if needed, keep captures temporarily and move them
+after PR creation. These are local QA artifacts: do not stage or commit
+screenshots unless the user explicitly requests that. Skip screenshots for
+non-UI changes; never manufacture proof. A Playwright mobile viewport proves
+responsive web, not the native app. Report separately if native emulator/device
+smoke testing was unavailable. For documentation-only changes, run the
+repository's documentation checks and `git diff --check`; skip Flutter
+analyze/tests, app builds, browser smoke tests, and screenshots when no UI
+behavior changed.
+
 ## 5. Create atomic commits
 
 - Review `git diff`, `git diff --check`, and `git status`.
@@ -137,10 +179,13 @@ git push --set-upstream origin <kind>/<name>
 - Verify `origin/<target_branch>` exists before opening the PR/MR.
 - Pass `target_branch` explicitly to the hosting CLI's base/target-branch option; do not rely on the repository default.
 
-- Detect the hosting CLI from the remote and installed tools:
-  - GitHub remote or `gh` available: use `gh pr create`;
-  - GitLab remote or `glab` available: use `glab mr create`;
-  - if the required CLI is unavailable, stop after the successful push and report the exact command needed; do not fabricate a link.
+- Select the hosting CLI from the remote provider, then verify that matching
+  CLI is installed:
+  - GitHub remote with `gh` available: use `gh pr create`;
+  - GitLab remote with `glab` available: use `glab mr create`;
+  - if the provider is unsupported or its matching CLI is unavailable, stop
+    after the successful push and report the exact blocker; do not choose a CLI
+    only because it is installed or fabricate a link.
 - Use `target_branch` as the PR/MR target; it defaults to `staging` unless the prompt explicitly names another target.
 - Derive a concise PR/MR title from the prompt and commits. Use the relevant conventional type prefix only when it improves clarity; do not duplicate noisy prefixes.
 - Write a focused description containing summary, key changes, and testing. Include the exact validation commands. Use a temporary file in the session scratchpad for multi-line descriptions, not a new project file.
