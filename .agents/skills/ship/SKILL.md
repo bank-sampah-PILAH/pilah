@@ -99,13 +99,23 @@ fi
 
 Run the checks documented by the repository first. If none are documented, detect and run applicable checks without inventing project files:
 
+### Optional SonarQube CLI gate
+
+Before committing, check for `sonar` and follow the workspace `sonarqube-cli`
+skill when it is installed. This check is optional: if the CLI, authentication,
+or project mapping is unavailable, do not install or log in; continue the ship
+workflow and report the reason. For an available project, remediate findings in
+changed code and rerun local analysis until none remain. Use the server issue
+list for context, not as a reason to clear unrelated project backlog. Report any
+remaining unrelated issues and whether Vortex analysis actually ran.
+
 - JavaScript/TypeScript: use the detected package manager from its lockfile; run available `format:check`, `lint`, `typecheck`, and `test` scripts.
 - Go: run `gofmt` in check/apply mode according to project convention, then `go vet ./...`, `go test ./...`, and project lint commands when configured.
 - Rust: run `cargo fmt --check`, `cargo check`, `cargo test`, and configured clippy checks.
 - Python: run configured formatter, linter, type checker, and test commands; prefer project scripts or `pyproject.toml` tooling.
 - Other projects: use their documented formatter, linter, build, and test commands.
 
-Fix failures caused by the implementation and rerun the failed checks. Do not bypass hooks or use `--no-verify`. Record the exact successful validation commands for the final response. If a check cannot run because a required tool or service is unavailable, stop before committing and report the blocker.
+Fix failures caused by the implementation and rerun the failed checks. Do not bypass hooks or use `--no-verify`. Record the exact successful validation commands for the final response. If a required repository check cannot run because a required tool or service is unavailable, stop before committing and report the blocker. The optional Sonar gate above is non-blocking when unavailable.
 
 ### PILAH Flutter: validate web and native mobile
 

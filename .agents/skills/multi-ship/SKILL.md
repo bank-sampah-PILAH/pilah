@@ -80,7 +80,10 @@ each worker:
 - instructions to immediately assign the authenticated user to the new PR/MR
   after creation and verify the assignment succeeds, using the workspace
   `ship` skill's GitHub or GitLab command.
-- instructions to load the selected repository's local `ship` and `lgtm` skills.
+- instructions to load the selected repository's local `ship` and `lgtm` skills
+  and the workspace `sonarqube-cli` skill when its optional CLI check is available.
+  Run the Sonar check independently in each worktree using that repository's
+  project key; never reuse the other repository's key.
 
 The explicit multi-project request authorizes all named workers. Do not request
 separate permission per repository. Do not let one worker modify another
