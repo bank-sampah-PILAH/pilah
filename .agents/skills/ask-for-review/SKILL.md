@@ -1,6 +1,6 @@
 ---
 name: ask-for-review
-description: Request GitHub PR reviews from mapped users, with one grouped Discord notification per PR. Use for "ask for review", "request review", or "ping <name> for review".
+description: Request GitHub PR reviews from mapped users, grouping PRs by Linear issue into one Discord notification. Use for "ask for review", "request review", or "ping <name> for review".
 metadata:
   requires:
     bins: ["gh", "python3"]
@@ -9,8 +9,8 @@ metadata:
 # Ask for Review
 
 This skill operates on **existing GitHub pull requests**. It does not create
-PRs. For each PR, it assigns all mapped reviewers together, then sends one
-Discord notification containing all their mentions.
+PRs. It assigns all mapped reviewers to each PR, then sends one Discord
+notification per Linear issue with all related PR links and reviewer mentions.
 
 ## Preconditions
 
@@ -45,10 +45,14 @@ user must also be in the table because they are the message sender.
 ## Workflow
 
 1. Parse one or more reviewers from the request. Use the current branch's PR
-   unless the user supplied PR URLs or numbers. For a multi-PR request, invoke
-   the helper once per PR so each PR gets at most one Discord notification.
-2. Run the bundled helper. Use `--area MOB` for `pilah-mobile` and `--area BE`
-   for `pilah-be` only when repository-name detection cannot determine it:
+   unless the user supplied PR URLs or numbers. For multiple PRs, pass all of
+   them to one helper invocation. PRs are grouped by a Linear issue key found
+   first in the head branch, then the title or body. A PR without a key gets its
+   own notification. Use full PR URLs for cross-repository requests so each
+   repository area is detected independently.
+2. Run the bundled helper. Repeat `--pr` for multiple PRs. Use `--area MOB` for
+   `pilah-mobile` and `--area BE` for `pilah-be` only when repository-name
+   detection cannot determine it:
 
    ```bash
    workspace_root="$(git rev-parse --show-superproject-working-tree)"
@@ -56,32 +60,35 @@ user must also be in the table because they are the message sender.
    python3 "$workspace_root/.agents/skills/ask-for-review/scripts/ask_for_review.py" \
      --reviewer <github-login-or-discord-username> \
      [--reviewer <github-login-or-discord-username> ...] \
-     [--pr <url-or-number>] [--area MOB|BE]
+     [--pr <url-or-number> ...] [--area MOB|BE]
    ```
 
    Use `--dry-run` to inspect the resolved PR and payload without changing
    GitHub or sending Discord.
-3. The helper validates `gh`, authentication, the PR, the sender and every
-   reviewer mapping, the area, and the webhook before making changes. It runs
-   one `gh pr edit ... --add-reviewer login1,login2` and sends one webhook
-   message for that PR, regardless of reviewer count.
-4. Report each PR URL, all assigned GitHub reviewers, and the Discord result. If
-   assignment succeeds but Discord fails, report the partial success and do not
-   remove reviewers or retry automatically.
+3. The helper validates `gh`, authentication, all PRs, the sender and every
+   reviewer mapping, areas, and the webhook before making changes. It assigns
+   reviewers to every PR, then sends one webhook message per Linear issue group.
+   `--dry-run` prints each grouped message without changing GitHub or Discord.
+4. Report every PR URL, assigned GitHub reviewers, and each issue group's
+   Discord result. If assignment succeeds but Discord fails, report the partial
+   success and do not remove reviewers or retry automatically.
 
 ## Discord payload
 
-The message content is exactly:
+For a single PR, the message keeps its title. Multiple PRs for one issue are
+combined, with area tags ordered `MOB` then `BE`:
 
 ```text
-[MOB/BE] <pr title>
-PR: <pr link>
+[MOB] [BE] changes for ENG-123
+MOB PR: <mobile PR link>
+BE PR: <backend PR link>
 From: <sender tag>
 To: <@reviewer-id-1> <@reviewer-id-2>
 <random review-request sentence>
 ```
 
-`MOB`/`BE` is selected from the repository (or the explicit `--area`). Sender
-and all reviewer tags are real Discord mentions in the form `<@discord-id>`;
-`allowed_mentions.users` includes every mentioned user. The final line is chosen
-uniformly from ten unique sentences, giving each a 10% chance per message.
+Each PR's area is detected from its repository (or the explicit `--area`).
+Sender and all reviewer tags are real Discord mentions in the form
+`<@discord-id>`; `allowed_mentions.users` includes every mentioned user. The
+final line is chosen uniformly from ten unique sentences, giving each a 10%
+chance per message.

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -19,16 +20,19 @@ from urllib.parse import urlparse
 
 WEBHOOK_ENV = "DISCORD_REVIEW_WEBHOOK_URL"
 REVIEW_REQUESTS = (
-    "Please review this PR when you have a moment.",
-    "Could you take a look at this PR and share your feedback?",
-    "I'd appreciate your review of this PR.",
-    "When you have time, please review the changes in this PR.",
-    "Could you review this pull request and leave any feedback?",
+    "Please review these changes when you have a moment.",
+    "Could you take a look at these changes and share your feedback?",
+    "I'd appreciate your review of these changes.",
+    "When you have time, please review these changes.",
+    "Could you review these pull requests and leave any feedback?",
     "Please take a look at the changes and let me know what you think.",
-    "Your review of this PR would be appreciated.",
-    "Would you mind reviewing this pull request?",
-    "Please share your thoughts after reviewing this PR.",
-    "Could you give this PR a review when convenient?",
+    "Your review would be appreciated.",
+    "Would you mind reviewing these changes?",
+    "Please share your thoughts after reviewing these changes.",
+    "Could you review these changes when convenient?",
+)
+LINEAR_ISSUE_KEY = re.compile(
+    r"(?<![A-Za-z0-9])([A-Za-z][A-Za-z0-9]*-\d+)(?![A-Za-z0-9])"
 )
 
 
@@ -139,7 +143,7 @@ def pr_view(pr_ref: str | None, repo: str | None) -> dict[str, Any]:
         args.append(pr_ref)
     if repo:
         args.extend(["--repo", repo])
-    args.extend(["--json", "number,title,url"])
+    args.extend(["--json", "number,title,url,headRefName,body"])
     result = run_gh(args)
     try:
         data = json.loads(result.stdout)
@@ -150,6 +154,21 @@ def pr_view(pr_ref: str | None, repo: str | None) -> dict[str, Any]:
     if any(key not in data for key in required):
         raise UserError("gh did not return the PR number, title, and URL")
     return data
+
+
+def linear_issue_key(pr: dict[str, Any]) -> str | None:
+    for field in ("headRefName", "title", "body"):
+        matches = {
+            match.upper()
+            for match in LINEAR_ISSUE_KEY.findall(str(pr.get(field) or ""))
+        }
+        if len(matches) > 1:
+            raise UserError(
+                f"PR #{pr['number']} has multiple possible Linear issue IDs in {field}"
+            )
+        if matches:
+            return next(iter(matches))
+    return None
 
 
 def repo_from_pr_url(pr_url: str) -> str | None:
@@ -244,14 +263,47 @@ def webhook_url() -> str:
     return value
 
 
+def group_pull_requests(
+    pull_requests: list[dict[str, Any]],
+) -> list[tuple[str | None, list[dict[str, Any]]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    issue_keys: dict[str, str | None] = {}
+    for pr in pull_requests:
+        issue_key = pr["issue_key"]
+        group_key = issue_key or str(pr["url"])
+        grouped.setdefault(group_key, []).append(pr)
+        issue_keys[group_key] = issue_key
+    return [(issue_keys[key], prs) for key, prs in grouped.items()]
+
+
 def message_content(
-    area: str, title: str, pr_url: str, sender: Member, reviewers: list[Member]
+    issue_key: str | None,
+    pull_requests: list[dict[str, Any]],
+    sender: Member,
+    reviewers: list[Member],
 ) -> str:
     reviewer_tags = " ".join(f"<@{reviewer.discord_id}>" for reviewer in reviewers)
+    areas = sorted(
+        {str(pr["area"]) for pr in pull_requests},
+        key=lambda area: {"MOB": 0, "BE": 1}.get(area, 2),
+    )
+    area_tags = " ".join(f"[{area}]" for area in areas)
+    if len(pull_requests) == 1:
+        header = f"{area_tags} {pull_requests[0]['title']}"
+        pr_lines = [f"PR: {pull_requests[0]['url']}"]
+    else:
+        header = f"{area_tags} changes for {issue_key}"
+        pr_lines = [
+            f"{pr['area']} PR: {pr['url']}"
+            for pr in sorted(
+                pull_requests,
+                key=lambda pr: {"MOB": 0, "BE": 1}.get(str(pr["area"]), 2),
+            )
+        ]
     return "\n".join(
         (
-            f"[{area}] {title}",
-            f"PR: {pr_url}",
+            header,
+            *pr_lines,
             f"From: <@{sender.discord_id}>",
             f"To: {reviewer_tags}",
             secrets.choice(REVIEW_REQUESTS),
@@ -315,7 +367,9 @@ def parse_args() -> argparse.Namespace:
         help="GitHub login or known Discord alias; repeat for multiple reviewers",
     )
     parser.add_argument(
-        "--pr", help="PR URL or number; defaults to the current branch's PR"
+        "--pr",
+        action="append",
+        help="PR URL or number; repeat to request reviews for multiple PRs",
     )
     parser.add_argument("--repo", help="GitHub repository in OWNER/REPO form")
     parser.add_argument(
@@ -336,35 +390,60 @@ def main() -> int:
     reviewers = list(dict.fromkeys(resolve_member(value) for value in args.reviewer))
     webhook = webhook_url()
 
-    pr = pr_view(args.pr, args.repo)
-    pr_url = str(pr["url"])
-    repo = args.repo or repo_from_pr_url(pr_url) or current_repo(None)
-    area = detect_area(repo, args.area)
-    content = message_content(area, str(pr["title"]), pr_url, sender, reviewers)
+    pull_requests = []
+    seen_urls = set()
+    for pr_ref in args.pr or [None]:
+        pr = pr_view(pr_ref, args.repo)
+        pr_url = str(pr["url"])
+        if pr_url in seen_urls:
+            continue
+        seen_urls.add(pr_url)
+        repo = args.repo or repo_from_pr_url(pr_url) or current_repo(None)
+        pr["area"] = detect_area(repo, args.area)
+        pr["issue_key"] = linear_issue_key(pr)
+        pr["ref"] = pr_ref
+        pull_requests.append(pr)
 
-    print(f"PR #{pr['number']}: {pr_url}")
-    print(f"Reviewers: {', '.join(reviewer.github for reviewer in reviewers)}")
-    if args.dry_run:
-        print("Dry run; no GitHub or Discord changes made.")
-        print(content)
-        return 0
-
-    edit_target = args.pr or str(pr["number"])
-    edit_args = ["pr", "edit", edit_target]
-    if args.repo:
-        edit_args.extend(["--repo", args.repo])
+    groups = group_pull_requests(pull_requests)
     reviewer_logins = ",".join(reviewer.github for reviewer in reviewers)
-    edit_args.extend(["--add-reviewer", reviewer_logins])
-    run_gh(edit_args)
-    print(f"Assigned GitHub reviewers: {reviewer_logins}.")
+    for issue_key, grouped_prs in groups:
+        content = message_content(issue_key, grouped_prs, sender, reviewers)
+        for pr in grouped_prs:
+            print(f"PR #{pr['number']}: {pr['url']}")
+        print(f"Reviewers: {', '.join(reviewer.github for reviewer in reviewers)}")
+        if args.dry_run:
+            print("Dry run; no GitHub or Discord changes made.")
+            print(content)
+            continue
 
-    try:
-        send_discord(webhook, content, sender, reviewers)
-    except UserError as exc:
-        raise UserError(
-            f"reviewer assignments succeeded, but Discord notification failed: {exc}"
-        ) from exc
-    print("Discord review request sent.")
+        assigned_urls = []
+        for pr in grouped_prs:
+            edit_target = pr["ref"] or str(pr["number"])
+            edit_args = ["pr", "edit", edit_target]
+            if args.repo:
+                edit_args.extend(["--repo", args.repo])
+            edit_args.extend(["--add-reviewer", reviewer_logins])
+            try:
+                run_gh(edit_args)
+            except UserError as exc:
+                assigned = ", ".join(assigned_urls)
+                partial = (
+                    f"reviewers already assigned to {assigned}; " if assigned else ""
+                )
+                raise UserError(
+                    f"{partial}could not assign reviewers to {pr['url']}: {exc}"
+                ) from exc
+            assigned_urls.append(pr["url"])
+            print(f"Assigned GitHub reviewers to {pr['url']}: {reviewer_logins}.")
+
+        try:
+            send_discord(webhook, content, sender, reviewers)
+        except UserError as exc:
+            raise UserError(
+                f"reviewer assignments succeeded for {', '.join(assigned_urls)}, "
+                f"but Discord notification failed: {exc}"
+            ) from exc
+        print("Discord review request sent.")
     return 0
 
 
