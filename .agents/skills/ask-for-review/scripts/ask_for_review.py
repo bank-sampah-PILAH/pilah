@@ -1,23 +1,35 @@
 #!/usr/bin/env python3
-"""Assign a known GitHub reviewer and notify a Discord webhook."""
+"""Assign known GitHub reviewers and notify a Discord webhook."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from http.client import HTTPException, HTTPSConnection
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
 
 
 WEBHOOK_ENV = "DISCORD_REVIEW_WEBHOOK_URL"
+REVIEW_REQUESTS = (
+    "Please review this PR when you have a moment.",
+    "Could you take a look at this PR and share your feedback?",
+    "I'd appreciate your review of this PR.",
+    "When you have time, please review the changes in this PR.",
+    "Could you review this pull request and leave any feedback?",
+    "Please take a look at the changes and let me know what you think.",
+    "Your review of this PR would be appreciated.",
+    "Would you mind reviewing this pull request?",
+    "Please share your thoughts after reviewing this PR.",
+    "Could you give this PR a review when convenient?",
+)
 
 
 @dataclass(frozen=True)
@@ -211,6 +223,10 @@ def webhook_url() -> str:
     value = value.strip()
     parsed = urlparse(value)
     host = (parsed.hostname or "").casefold()
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise UserError(f"{WEBHOOK_ENV} must be an HTTPS Discord webhook URL") from exc
     valid_host = (
         host == "discord.com"
         or host.endswith(".discord.com")
@@ -218,6 +234,7 @@ def webhook_url() -> str:
     )
     if (
         parsed.scheme != "https"
+        or port not in (None, 443)
         or not valid_host
         or not parsed.path.startswith("/api/webhooks/")
     ):
@@ -227,56 +244,83 @@ def webhook_url() -> str:
     return value
 
 
-def message_content(area: str, title: str, pr_url: str, sender: Member, reviewer: Member) -> str:
+def message_content(
+    area: str, title: str, pr_url: str, sender: Member, reviewers: list[Member]
+) -> str:
+    reviewer_tags = " ".join(f"<@{reviewer.discord_id}>" for reviewer in reviewers)
     return "\n".join(
         (
             f"[{area}] {title}",
             f"PR: {pr_url}",
             f"From: <@{sender.discord_id}>",
-            f"To: <@{reviewer.discord_id}>",
-            "PLease help to review this pr",
+            f"To: {reviewer_tags}",
+            secrets.choice(REVIEW_REQUESTS),
         )
     )
 
 
-def send_discord(webhook: str, content: str, sender: Member, reviewer: Member) -> None:
+def send_discord(
+    webhook: str, content: str, sender: Member, reviewers: list[Member]
+) -> None:
     payload = {
         "content": content,
-        "allowed_mentions": {"users": [sender.discord_id, reviewer.discord_id]},
-    }
-    request = Request(
-        webhook,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "User-Agent": "ask-for-review-skill",
+        "allowed_mentions": {
+            "users": [
+                sender.discord_id,
+                *(reviewer.discord_id for reviewer in reviewers),
+            ]
         },
-        method="POST",
-    )
+    }
+    parsed = urlparse(webhook)
+    host = parsed.hostname
+    if parsed.scheme != "https" or host is None:
+        raise UserError("Discord webhook URL must be HTTPS and include a hostname")
     try:
-        with urlopen(request, timeout=20) as response:
-            status = response.status
-    except HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:300]
-        raise UserError(
-            f"Discord webhook failed with HTTP {exc.code}"
-            + (f": {detail}" if detail else "")
-        ) from exc
-    except URLError as exc:
-        raise UserError(f"Discord webhook request failed: {exc.reason}") from exc
+        connection = HTTPSConnection(host, parsed.port or 443, timeout=20)
+    except (OSError, ValueError) as exc:
+        raise UserError(f"Discord webhook request failed: {exc}") from exc
+
+    try:
+        connection.request(
+            "POST",
+            parsed.path + (f"?{parsed.query}" if parsed.query else ""),
+            body=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "ask-for-review-skill",
+            },
+        )
+        response = connection.getresponse()
+        status = response.status
+        detail = response.read().decode("utf-8", errors="replace")[:300]
+    except (HTTPException, OSError, ValueError) as exc:
+        raise UserError(f"Discord webhook request failed: {exc}") from exc
+    finally:
+        connection.close()
 
     if status not in {200, 204}:
-        raise UserError(f"Discord webhook returned unexpected HTTP {status}")
+        raise UserError(
+            f"Discord webhook failed with HTTP {status}" + (f": {detail}" if detail else "")
+        )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Assign a known GitHub reviewer and notify Discord."
+        description="Assign known GitHub reviewers and notify Discord."
     )
-    parser.add_argument("--reviewer", required=True, help="GitHub login or known Discord alias")
-    parser.add_argument("--pr", help="PR URL or number; defaults to the current branch's PR")
+    parser.add_argument(
+        "--reviewer",
+        action="append",
+        required=True,
+        help="GitHub login or known Discord alias; repeat for multiple reviewers",
+    )
+    parser.add_argument(
+        "--pr", help="PR URL or number; defaults to the current branch's PR"
+    )
     parser.add_argument("--repo", help="GitHub repository in OWNER/REPO form")
-    parser.add_argument("--area", help="MOB or BE; otherwise detect it from the repository")
+    parser.add_argument(
+        "--area", help="MOB or BE; otherwise detect it from the repository"
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -289,17 +333,17 @@ def main() -> int:
     args = parse_args()
     verify_gh()
     sender = current_member()
-    reviewer = resolve_member(args.reviewer)
+    reviewers = list(dict.fromkeys(resolve_member(value) for value in args.reviewer))
     webhook = webhook_url()
 
     pr = pr_view(args.pr, args.repo)
     pr_url = str(pr["url"])
     repo = args.repo or repo_from_pr_url(pr_url) or current_repo(None)
     area = detect_area(repo, args.area)
-    content = message_content(area, str(pr["title"]), pr_url, sender, reviewer)
+    content = message_content(area, str(pr["title"]), pr_url, sender, reviewers)
 
     print(f"PR #{pr['number']}: {pr_url}")
-    print(f"Reviewer: {reviewer.github}")
+    print(f"Reviewers: {', '.join(reviewer.github for reviewer in reviewers)}")
     if args.dry_run:
         print("Dry run; no GitHub or Discord changes made.")
         print(content)
@@ -309,15 +353,16 @@ def main() -> int:
     edit_args = ["pr", "edit", edit_target]
     if args.repo:
         edit_args.extend(["--repo", args.repo])
-    edit_args.extend(["--add-reviewer", reviewer.github])
+    reviewer_logins = ",".join(reviewer.github for reviewer in reviewers)
+    edit_args.extend(["--add-reviewer", reviewer_logins])
     run_gh(edit_args)
-    print(f"Assigned GitHub reviewer {reviewer.github}.")
+    print(f"Assigned GitHub reviewers: {reviewer_logins}.")
 
     try:
-        send_discord(webhook, content, sender, reviewer)
+        send_discord(webhook, content, sender, reviewers)
     except UserError as exc:
         raise UserError(
-            f"reviewer assignment succeeded, but Discord notification failed: {exc}"
+            f"reviewer assignments succeeded, but Discord notification failed: {exc}"
         ) from exc
     print("Discord review request sent.")
     return 0
@@ -328,4 +373,4 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except UserError as exc:
         print(f"ask-for-review: {exc}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
