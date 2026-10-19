@@ -203,6 +203,7 @@ git push --set-upstream origin <kind>/<name>
 - Immediately assign the authenticated user to the new PR/MR and verify the command succeeds:
   - GitHub: `gh pr edit "<pr-url>" --add-assignee "@me"`.
   - GitLab: `self_username="$(glab api user | jq -r '.username')"` followed by `glab mr update --assignee "$self_username"` from the new worktree.
+- After creating a GitHub PR, upload generated validation evidence from `artifacts/pr-<PR_NUMBER>/` to the PR. Load and follow the global `github-image-upload` skill, including its prerequisites, file-path resolution, confirmation, and verification. Post all relevant evidence files together as a PR comment with `gh image "<absolute-path-1>" "<absolute-path-2>" -- pr comment <PR_NUMBER> --repo <OWNER>/<REPO> --body "## Evidence"`; use quoted absolute paths and do not include secrets, build outputs, or unrelated files. If evidence was captured before the PR number was known, move it into that directory first. If the directory has no evidence, skip the upload. If uploader prerequisites fail, report which evidence was not uploaded and the blocker. For GitLab MRs, report that `gh-image` cannot post attachments rather than claiming they were uploaded.
 - Do not assign reviewers, enable auto-merge, delete the source branch, or mark draft unless explicitly requested.
 
 ## 7. Final response
@@ -222,6 +223,7 @@ Step to verify changes: <short manual verification steps>
 - Replace `so on` with the complete comma-separated commit links; never leave placeholder text.
 - Include the worktree path and branch in the one-line implementation summary only when useful.
 - If no MR/PR was created because a required CLI or validation blocker stopped the workflow, state that compactly in the `MR:` line instead of inventing a URL.
+- Include whether generated evidence was uploaded, absent, or blocked in the `Validated with:` line.
 
 ## Safety boundaries
 

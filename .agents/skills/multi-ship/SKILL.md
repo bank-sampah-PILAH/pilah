@@ -76,10 +76,13 @@ each worker:
   the new worktree immediately after `git worktree add`, when it exists, before
   reading local instructions or starting implementation;
 - instructions to read its project `AGENTS.md` and return PR URL,
-  commits, checks, worktree path, and blockers.
+  commits, checks, worktree path, and blockers;
 - instructions to immediately assign the authenticated user to the new PR/MR
   after creation and verify the assignment succeeds, using the workspace
-  `ship` skill's GitHub or GitLab command.
+  `ship` skill's GitHub or GitLab command;
+- instructions to upload generated evidence from each worktree's
+  `artifacts/pr-<PR_NUMBER>/` to its GitHub PR using the global
+  `github-image-upload` skill, and report any upload blocker;
 - instructions to load the selected repository's local `ship` and `lgtm` skills
   and the workspace `sonarqube-cli` skill when its optional CLI check is available.
   Run the Sonar check independently in each worktree using that repository's
