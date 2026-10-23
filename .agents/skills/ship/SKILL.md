@@ -122,12 +122,16 @@ Fix failures caused by the implementation and rerun the failed checks. Do not by
 For faster iteration, start with the affected test file
 (`flutter test test/path/to/feature_test.dart`) or one named test
 (`flutter test test/path/to/feature_test.dart --plain-name "test description"`).
-Before shipping, still run the full `flutter test` and the checks below; PR CI
-runs the complete suite in coverage shards.
+Before shipping, run full `flutter analyze` and `flutter test`, plus the mobile
+builds below. Mobile PRs and feature-branch pushes run only changed VM test files
+under `test/` (none when none changed), with browser tests only for web-code or
+browser-test diffs. Pushes to `staging` run full sharded Flutter and browser
+suites. CI merges LCOV before the existing 25% global and diff-coverage gates,
+which run only on `staging`; diff coverage compares that push with its previous
+SHA. Sonar reuses same-run coverage when available and never reruns tests.
 
-For `pilah-mobile` code or behavior changes, run `flutter analyze` and
-`flutter test`, and target both web and native mobile unless the prompt
-explicitly narrows the platforms. Also run:
+For `pilah-mobile` code or behavior changes, target both web and native mobile
+unless the prompt explicitly narrows the platforms. Also run:
 
 ```bash
 flutter build apk --debug -t lib/main_development.dart

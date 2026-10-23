@@ -73,9 +73,18 @@ The explicit multi-project request authorizes all named workers. Do not request
 separate permission per repository. Do not let one worker modify another
 repository.
 
-The backend worker must use the documented Django test command. The mobile
-worker must use the documented Flutter analyze and test commands. Do not
-invent checks or report commands that could not run.
+The backend worker must use the documented Django test command. For mobile,
+follow the workspace `ship` skill's cross-platform checks: use focused test
+files during iteration, then run full `flutter analyze` and `flutter test` plus
+Android/web builds before shipping. Mobile PRs and feature pushes run only
+changed VM test files under `test/` (none when none changed), with browser tests
+only for web-code or browser-test diffs. Pushes to `staging` run the full
+sharded Flutter and browser suites; LCOV is merged before the existing 25%
+global/diff gates, which run only on `staging` and compare against the previous
+staging SHA. Sonar reuses same-run coverage when available and never reruns
+tests. For documentation-only workspace changes, review Markdown and run
+`git diff --check`; do not add workspace CI. Do not invent checks or report
+commands that could not run.
 
 ## 4. Coordinate outcomes
 
